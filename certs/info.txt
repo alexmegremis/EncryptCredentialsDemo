@@ -1,0 +1,5 @@
+https://www.wowza.com/docs/how-to-import-an-existing-ssl-certificate-and-private-key
+https://stackoverflow.com/questions/34227317/in-java-how-do-i-decrypt-using-the-private-key-from-an-x509-certificate-public
+https://stackoverflow.com/questions/16970302/reading-pkcs12-certificate-information
+https://stackoverflow.com/questions/18539274/extracting-private-key-from-pkcs12-and-text-encryption
+http://www.jasypt.org/non-default-providers.html
