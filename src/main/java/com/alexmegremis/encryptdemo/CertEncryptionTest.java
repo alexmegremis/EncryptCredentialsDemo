@@ -5,7 +5,7 @@ import java.io.FileInputStream;
 import java.security.*;
 import java.security.cert.Certificate;
 
-public class EncryptionTest {
+public class CertEncryptionTest {
 
     public static final String PLAINTEXT = "hello world";
 
