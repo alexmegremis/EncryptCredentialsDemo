@@ -5,6 +5,7 @@ import javax.crypto.spec.PBEParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.*;
@@ -16,6 +17,7 @@ public class PlainEncryption {
     public static final String                 patternText = ".*(###.*###)$";
     public static final Pattern                pattern     = Pattern.compile(patternText);
     public static final List<String>           output      = new ArrayList<>();
+
     public static final AlgorithmParameterSpec param       = new PBEParameterSpec("1@ds#&6f".getBytes(), 5000);
 
     public static String        cryptoKeyText  = null;
@@ -97,17 +99,11 @@ public class PlainEncryption {
         Cipher cipher = Cipher.getInstance("PBEWithMD5AndTripleDES", "SunJCE");
         cipher.init(Cipher.ENCRYPT_MODE, cryptoKey, param);
 
-//        byte[] unencryptedBytes = unencrypted.getBytes();
-//        byte[] encryptedBytes = new byte[cipher.getOutputSize(unencryptedBytes.length)];
-//        int    ctLength       = cipher.update(unencryptedBytes, 0, unencryptedBytes.length, encryptedBytes, 0);
-//        ctLength += cipher.doFinal(encryptedBytes, ctLength);
-        // CXdr+RqzNtwoTwpHVHimRwCEHbK4hs8o
-        // XE/oey7RhfgoqhdaMYN0UbkVRgdX4KKu
         byte[] encryptedBytes = cipher.doFinal(unencrypted.getBytes());
 
         Base64.Encoder encoder               = Base64.getEncoder();
         byte[]         encodedEncryptedBytes = encoder.encode(encryptedBytes);
-        String         encryptedText         = new String(encodedEncryptedBytes, "UTF-8");
+        String         encryptedText         = new String(encodedEncryptedBytes, StandardCharsets.UTF_8);
 
         return encryptedText;
     }
