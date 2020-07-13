@@ -1,0 +1,4 @@
+This is a line
+key : value
+other key : START|>###unencryptedvalue###
+final key : normal value
