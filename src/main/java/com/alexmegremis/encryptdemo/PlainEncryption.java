@@ -14,11 +14,11 @@ import java.util.regex.Pattern;
 
 public class PlainEncryption {
 
-    public static final String                 patternText = ".*(###.*###)$";
-    public static final Pattern                pattern     = Pattern.compile(patternText);
-    public static final List<String>           output      = new ArrayList<>();
+    public static final String       patternText = ".*(__DEC\\{(.*)\\})$";
+    public static final Pattern      pattern     = Pattern.compile(patternText);
+    public static final List<String> output      = new ArrayList<>();
 
-    public static final AlgorithmParameterSpec param       = new PBEParameterSpec("1@ds#&6f".getBytes(), 5000);
+    public static final AlgorithmParameterSpec param = new PBEParameterSpec("1@ds#&6f".getBytes(), 5000);
 
     public static String        cryptoKeyText  = null;
     public static byte[]        cryptoKeyBytes = null;
@@ -27,9 +27,13 @@ public class PlainEncryption {
     public static boolean didMatch = false;
 
     public static void main(String[] args) throws Exception {
+
+        String uncryptedFilePath = "unencrypted.txt";
+        if (args != null && args.length > 0) {
+            uncryptedFilePath = args[0];
+        }
         File cryptoKeyFile   = new File("key.txt");
-        File unencryptedFile = new File("unencrypted.txt");
-        File encryptedFile   = new File("encrypted.txt");
+        File unencryptedFile = new File(uncryptedFilePath);
 
         // Validate
         if (! cryptoKeyFile.exists()) {
@@ -38,6 +42,10 @@ public class PlainEncryption {
         if (! unencryptedFile.exists()) {
             throw new IllegalArgumentException("File unencrypted.txt must be present with the plaintext content.");
         }
+
+        // Prepare output
+        String encryptedFilePath = uncryptedFilePath.replaceAll(unencryptedFile.getName(), "ENCRYPTED_" + unencryptedFile.getName());
+        File   encryptedFile     = new File(encryptedFilePath);
         if (encryptedFile.exists()) {
             encryptedFile.delete();
         }
@@ -58,7 +66,7 @@ public class PlainEncryption {
 
         // Warn if no encryption took place
         if (! didMatch) {
-            throw new IllegalArgumentException("File unencrypted.txt did not have any lines that match the regex " + patternText);
+            throw new IllegalArgumentException("File " + uncryptedFilePath + " did not have any lines that match the regex " + patternText);
         }
 
         // Output
@@ -79,16 +87,21 @@ public class PlainEncryption {
             didMatch = true;
 
             // This should never happen, our regex runs greedy to end of line.
-            if (matcher.groupCount() > 1) {
+            if (matcher.groupCount() != 2) {
                 throw new IllegalStateException("Each line should match the regex " + patternText);
             }
 
-            String match = matcher.group(1);
+            // DEC{aPassword}
+            String delimitedUnencryptedText = matcher.group(1);
+            // aPassword
+            String unencryptedText = matcher.group(2);
 
-            String encryptedText = getEncrypted(match);
+            String encryptedText = getEncrypted(unencryptedText);
             String decryptedText = getDecrypted(encryptedText);
-            System.out.println(match + " -> " + encryptedText + " -> " + decryptedText);
-            output.add(unencryptedLine.replaceAll(match, "ENC{" + encryptedText + "}"));
+            System.out.println(unencryptedText + " -> " + encryptedText + " -> " + decryptedText);
+
+            String outputLine = unencryptedLine.substring(0, delimitedUnencryptedText.length()) + "ENC{" + encryptedText + "}";
+            output.add(outputLine);
         } else {
             output.add(unencryptedLine);
         }

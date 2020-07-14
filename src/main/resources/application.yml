@@ -1,4 +1,10 @@
 spring:
   datasource:
     username: root
-    password: ###Welcome1#!###
+    password: __DEC{Welcome1!}
+    url:
+
+test:
+  aBoolean: true
+  aString: Alex
+  aNumber: 55

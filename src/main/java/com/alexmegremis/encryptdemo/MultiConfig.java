@@ -8,16 +8,21 @@ import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.regex.Pattern;
 
 @Slf4j
+@Configuration
 public class MultiConfig implements ApplicationContextAware {
+
+    public static final String  patternText = ".*(__DEC\\{(.*)\\})$";
+    public static final Pattern pattern     = Pattern.compile(patternText);
 
     @Getter
     @Setter
@@ -53,6 +58,15 @@ public class MultiConfig implements ApplicationContextAware {
 
         yamlProperties.setResources(yamlLocationsList.toArray(new Resource[0]));
         yamlProperties.afterPropertiesSet();
+
+        yamlProperties.getObject();
+
+        Properties encryptedProperties = yamlProperties.getObject();
+        Properties decryptedProperties = new Properties();
+
+        encryptedProperties.keySet().stream().forEach(k -> {
+            String value = (String) encryptedProperties.get(k);
+        });
 
         properties.setProperties(yamlProperties.getObject());
         properties.setTrimValues(true);
