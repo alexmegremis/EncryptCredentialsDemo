@@ -11,12 +11,13 @@ import java.util.regex.Pattern;
 
 public class PlainEncryption {
 
-    public static final String TRANSFORM_ALGO = "PBEWithMD5AndTripleDES";
+    public static final String TRANSFORM_ALGO        = "PBEWithMD5AndTripleDES";
     public static final String TO_BE_ENCRYPTED_REGEX = ".*(###(.*)###)$";
 
     public static final Pattern      TO_BE_ENCRYPTED_TOKEN_PATTERN = Pattern.compile(TO_BE_ENCRYPTED_REGEX);
     public static final List<String> ENCRTYPTED_LINES              = new ArrayList<>();
-    public static final String PBE_ALGO = "PBE";
+    public static final String       PBE_ALGO                      = "PBE";
+    public static final String       FILENAME_PREFIX_UNENCRYPTED   = "UNENCRYPTED_";
 
     // This weakens our output, but it's an acceptable compromise.
     private static final String SALT = "1@ds#&6f";
@@ -37,20 +38,24 @@ public class PlainEncryption {
         }
         File cryptoKeyFile   = new File("key.txt");
         File unencryptedFile = new File(unencryptedFilePath);
+        File renamedUnencryptedFile = getRenamedOriginalFile(unencryptedFile);
+        if (! unencryptedFile.exists() && !renamedUnencryptedFile.exists()) {
+            throw new IllegalArgumentException("File " + unencryptedFile.getPath() + " must be present with the plaintext content.");
+        }
+        if(!renamedUnencryptedFile.exists()) {
+            unencryptedFile.renameTo(renamedUnencryptedFile);
+        }
 
         // Validate
         if (! cryptoKeyFile.exists()) {
             throw new IllegalArgumentException("File " + cryptoKeyFile.getName() + " must be present and contain the one-line crypto key in the first line.");
         }
-        if (! unencryptedFile.exists()) {
-            throw new IllegalArgumentException("File " + unencryptedFilePath + " must be present with the plaintext content.");
-        }
 
         // Prepare output
-        String encryptedFilePath = unencryptedFilePath.replaceAll(unencryptedFile.getName(), "ENCRYPTED_" + unencryptedFile.getName());
-        File   encryptedFile     = new File(encryptedFilePath);
+//        String encryptedFilePath = unencryptedFilePath.replaceAll(unencryptedFile.getName(), "ENCRYPTED_" + unencryptedFile.getName());
+        File   encryptedFile     = getOutputFile(renamedUnencryptedFile);
         if (encryptedFile.exists()) {
-            System.out.println(">>> Deleting existing file " + encryptedFilePath);
+            System.out.println(">>> Deleting existing file " + encryptedFile.getPath());
             encryptedFile.delete();
         }
 
@@ -65,14 +70,14 @@ public class PlainEncryption {
         // /facewall
         // /facewall
         // /facewall
-        List<String> allUnencryptedLines = Files.readAllLines(unencryptedFile.toPath());
+        List<String> allUnencryptedLines = Files.readAllLines(renamedUnencryptedFile.toPath());
         for (String line : allUnencryptedLines) {
             encryptLine(line);
         }
 
         // Warn if no encryption took place
         if (! didMatch) {
-            throw new IllegalArgumentException("File " + unencryptedFilePath + " did not have any lines that match the regex " + TO_BE_ENCRYPTED_REGEX);
+            throw new IllegalArgumentException("File " + renamedUnencryptedFile.getPath() + " did not have any lines that match the regex " + TO_BE_ENCRYPTED_REGEX);
         }
 
         // Output
@@ -83,6 +88,32 @@ public class PlainEncryption {
             fos.write((o + '\n').getBytes());
         }
         fos.close();
+    }
+
+    private static File getRenamedOriginalFile(final File unencryptedFile) {
+        String currentPath = unencryptedFile.getPath();
+        String currentName = unencryptedFile.getName();
+        File   result      = unencryptedFile;
+        if (! currentName.startsWith(FILENAME_PREFIX_UNENCRYPTED)) {
+            String updatedPath = currentPath.substring(0, currentPath.length() - currentName.length()) + FILENAME_PREFIX_UNENCRYPTED + currentName;
+            result = new File(updatedPath);
+        }
+        return result;
+    }
+
+    private static File getOutputFile(final File unencryptedFile) {
+        String currentPath = unencryptedFile.getPath();
+        String currentName = unencryptedFile.getName();
+        if (! currentName.startsWith(FILENAME_PREFIX_UNENCRYPTED)) {
+            throw new IllegalStateException("The source file should have been renamed with a prefix by this point.");
+        }
+        String outputName = currentName.substring(FILENAME_PREFIX_UNENCRYPTED.length());
+        if (outputName.length() == 0) {
+            outputName = "OUTPUT";
+        }
+        String outputPath = currentPath.substring(0, currentPath.length() - currentName.length()) + outputName;
+        File   result     = new File(outputPath);
+        return result;
     }
 
     public static final void encryptLine(final String unencryptedLine) throws Exception {
@@ -104,15 +135,14 @@ public class PlainEncryption {
             String encryptedText = getEncrypted(unencryptedText);
             String decryptedText = getDecrypted(encryptedText);
 
-            if(encryptedText.equals(decryptedText)) {
+            if (encryptedText.equals(decryptedText)) {
                 throw new IllegalStateException("No encryption took place.");
             }
-            if(!unencryptedText.equals(decryptedText)) {
+            if (! unencryptedText.equals(decryptedText)) {
                 throw new IllegalStateException("Encrypted text could not be test decrypted successfully.");
             }
 
-            String outputLine = unencryptedLine.substring(0, unencryptedLine.length() - delimitedUnencryptedText.length())
-                                        + "ENC{" + encryptedText + "}";
+            String outputLine = unencryptedLine.substring(0, unencryptedLine.length() - delimitedUnencryptedText.length()) + "ENC{" + encryptedText + "}";
             ENCRTYPTED_LINES.add(outputLine);
         } else {
             ENCRTYPTED_LINES.add(unencryptedLine);
