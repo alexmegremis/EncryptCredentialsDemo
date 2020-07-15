@@ -1,25 +1,34 @@
-spring:
-  datasource:
-    url: jdbc:mariadb://NAS01.local:3307/spring_test
-    data-username: spring_test
-    password: ENC{UgKuC2Pb3XJClK36f1Ny0WQDe5iJDzZ2}
-
-test:
-  datasource:
-    db01:
-      username: root
-      password: ENC{UgKuC2Pb3XKlx8w5Izpe5w==}
-      url:
-    db02:
-      username: root
-      password: ENC{6rNtxqFvn6Ntkjezbd3RGInKxj1XD9qa9vG2AUBwi3P+Nq43YK0FsUWaWoGQQmXXHw7YH4q7Ow4j+92lfwrDFvgKAvSWWOUE}
-      url:
-    db03:
-      username: root
-      password: ENC{cOHbjL0ibzNTkteP4a8xrHsYOeZzAdq4}
-      url:
+com:
+  alexmegremis:
+    datasource:
+      mariadb:
+        url: jdbc:mariadb://NAS01.local:3307/spring_test
+        username: spring_test
+        password: ENC{UgKuC2Pb3XLLEQFUVMTC7w==}
+        driver-class-name: org.mariadb.jdbc.Driver
+      othermariadb:
+        url: jdbc:mariadb://NAS01.local:3307/spring_test02
+        username: spring_test02
+        password: ENC{UgKuC2Pb3XLLEQFUVMTC7w==}
+        driver-class-name: org.mariadb.jdbc.Driver
 
 stuffToIgnore:
   aBoolean: true
   aString: Alex
   aNumber: 55
+spring:
+  application:
+    admin:
+      enabled: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+    enabled-by-default: true
+  endpoint:
+    health:
+      show-components: always
+      show-details: always
+    env:
+      keys-to-sanitize:

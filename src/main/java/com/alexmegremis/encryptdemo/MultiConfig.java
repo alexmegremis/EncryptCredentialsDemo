@@ -4,12 +4,14 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
+import org.springframework.core.env.*;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
@@ -41,10 +43,10 @@ public class MultiConfig implements ApplicationContextAware {
 
     @Getter
     @Setter
-    private ApplicationContext applicationContext;
+    private ApplicationContext      applicationContext;
 
     @Bean
-    public PropertySourcesPlaceholderConfigurer properties() throws Exception {
+    public PropertySourcesPlaceholderConfigurer properties(ConfigurableEnvironment environment) throws Exception {
 
         initCrypto();
 
@@ -82,11 +84,18 @@ public class MultiConfig implements ApplicationContextAware {
         Properties encryptedProperties = yamlProperties.getObject();
         Properties decryptedProperties = new Properties();
 
+        MutablePropertySources propertySources = environment.getPropertySources();
+        Map<String, Object>    map             = new HashMap<>();
+
         for (Object key : encryptedProperties.keySet()) {
             Object decryptedValue = getDecrypted(encryptedProperties.get(key));
             decryptedProperties.put(key, decryptedValue);
+            if(!encryptedProperties.get(key).equals(decryptedValue)) {
+                map.put(key.toString(), decryptedValue);
+            }
         }
 
+        propertySources.addFirst(new MapPropertySource("decrypted", map));
         properties.setProperties(decryptedProperties);
         properties.setTrimValues(true);
         return properties;

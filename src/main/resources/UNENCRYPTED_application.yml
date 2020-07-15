@@ -1,25 +1,34 @@
-spring:
-  datasource:
-    url: jdbc:mariadb://NAS01.local:3307/spring_test
-    data-username: spring_test
-    password: ###Welcome123!foobar###
-
-test:
-  datasource:
-    db01:
-      username: root
-      password: ###Welcome1!###
-      url:
-    db02:
-      username: root
-      password: ###09awuvwvmuwap94utan904wuva9tu4097t340987t3TC#$%V@#%G@#$5gh2345G@V%$GV###
-      url:
-    db03:
-      username: root
-      password: ###This-is-A-p@ssw0Rd###
-      url:
+com:
+  alexmegremis:
+    datasource:
+      mariadb:
+        url: jdbc:mariadb://NAS01.local:3307/spring_test
+        username: spring_test
+        password: ###Welcome123!###
+        driver-class-name: org.mariadb.jdbc.Driver
+      othermariadb:
+        url: jdbc:mariadb://NAS01.local:3307/spring_test02
+        username: spring_test02
+        password: ###Welcome123!###
+        driver-class-name: org.mariadb.jdbc.Driver
 
 stuffToIgnore:
   aBoolean: true
   aString: Alex
   aNumber: 55
+spring:
+  application:
+    admin:
+      enabled: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+    enabled-by-default: true
+  endpoint:
+    health:
+      show-components: always
+      show-details: always
+    env:
+      keys-to-sanitize:
