@@ -4,7 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -12,8 +12,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 import org.springframework.core.env.*;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
+import org.springframework.core.io.*;
 
 import javax.crypto.*;
 import javax.crypto.spec.*;
@@ -27,92 +26,109 @@ import java.util.regex.Pattern;
 public class MultiConfig implements ApplicationContextAware {
 
     public static final String  TRANSFORM_ALGO                = "PBEWithMD5AndTripleDES";
-    public static final String  TO_BE_DECRYPTED_REGEX         = ".*(ENC\\{(.*)\\})$";
+    public static final String  TO_BE_DECRYPTED_TOKEN_REGEX   = ".*(ENC\\{(.*)\\})$";
     public static final String  PBE_ALGO                      = "PBE";
-    public static final Pattern TO_BE_DECRYPTED_TOKEN_PATTERN = Pattern.compile(TO_BE_DECRYPTED_REGEX);
-
-    // This weakens our output, but it's an acceptable compromise.
-    private static final String SALT = "1@ds#&6f";
-
-    public static final AlgorithmParameterSpec PBE_PARAM = new PBEParameterSpec(SALT.getBytes(), 65536);
-
-    public static SecretKeyFactory secretKeyFactory = null;
-    public static SecretKey        secretKey        = null;
-    public static PBEKeySpec       secretKeySpec    = null;
-    public static Cipher           cipher           = null;
+    public static final Pattern TO_BE_DECRYPTED_TOKEN_PATTERN = Pattern.compile(TO_BE_DECRYPTED_TOKEN_REGEX);
 
     @Getter
     @Setter
-    private ApplicationContext      applicationContext;
+    private ApplicationContext applicationContext;
 
     @Bean
     public PropertySourcesPlaceholderConfigurer properties(ConfigurableEnvironment environment) throws Exception {
 
-        initCrypto();
-
         YamlPropertiesFactoryBean            yamlProperties = new YamlPropertiesFactoryBean();
-        PropertySourcesPlaceholderConfigurer properties     = new PropertySourcesPlaceholderConfigurer();
+        PropertySourcesPlaceholderConfigurer result         = new PropertySourcesPlaceholderConfigurer();
 
-        String         activeProfile;
-        final String[] activeProfiles = applicationContext.getEnvironment().getActiveProfiles();
-        if (ArrayUtils.isNotEmpty(activeProfiles)) {
-            activeProfile = activeProfiles[0];
-        } else {
-            activeProfile = "test";
-        }
-
-        String profileSpecificApplicationPropertyName = "application-" + activeProfile + ".yml";
-
-        Resource application         = new ClassPathResource("application.yml");
-        Resource applicationProfiled = new ClassPathResource(profileSpecificApplicationPropertyName);
-
-        List<Resource> yamlLocationsList = new ArrayList<>();
-
-        yamlLocationsList.add(application);
-
-        if (applicationProfiled.exists()) {
-            yamlLocationsList.add(applicationProfiled);
-        } else {
-            log.warn(">>> Properties file {} is MISSING from classpath");
-        }
+        List<Resource> yamlLocationsList = getPropertyFiles();
 
         yamlProperties.setResources(yamlLocationsList.toArray(new Resource[0]));
         yamlProperties.afterPropertiesSet();
 
-        yamlProperties.getObject();
-
         Properties encryptedProperties = yamlProperties.getObject();
-        Properties decryptedProperties = new Properties();
 
         MutablePropertySources propertySources = environment.getPropertySources();
+        final Cipher           cipher          = initCipher();
         Map<String, Object>    map             = new HashMap<>();
 
         for (Object key : encryptedProperties.keySet()) {
-            Object decryptedValue = getDecrypted(encryptedProperties.get(key));
-            decryptedProperties.put(key, decryptedValue);
-            if(!encryptedProperties.get(key).equals(decryptedValue)) {
+            Object decryptedValue = getDecrypted(cipher, encryptedProperties.get(key));
+            if (! encryptedProperties.get(key).equals(decryptedValue)) {
                 map.put(key.toString(), decryptedValue);
             }
         }
 
-        propertySources.addFirst(new MapPropertySource("decrypted", map));
-        properties.setProperties(decryptedProperties);
-        properties.setTrimValues(true);
-        return properties;
+        propertySources.addFirst(new MapPropertySource("decryptedProperties", map));
+
+        result.setProperties(encryptedProperties);
+        result.setTrimValues(true);
+        return result;
     }
 
-    private void initCrypto() throws Exception {
-        final String cryptoKeyString = applicationContext.getEnvironment().getProperty("CRYPTO_KEY");
+    public String getProfile() {
+        String         result;
+        final String[] activeProfiles = applicationContext.getEnvironment().getActiveProfiles();
+        if (ArrayUtils.isNotEmpty(activeProfiles)) {
+            result = activeProfiles[0];
+        } else {
+            result = "test";
+        }
+
+        return result;
+    }
+
+    public List<Resource> getPropertyFiles() {
+        String activeProfile = getProfile();
+        log.info(">>> Active profile is {}", activeProfile);
+
+        String profileSpecificApplicationPropertyName = "application-" + activeProfile + ".yml";
+
+        Resource application                 = new ClassPathResource("application.yml");
+        Resource applicationProfiledInternal = new ClassPathResource(profileSpecificApplicationPropertyName);
+        Resource applicationProfiledExternal = new FileSystemResource(profileSpecificApplicationPropertyName);
+
+        List<Resource> result = new ArrayList<>();
+
+        result.add(application);
+
+        if (applicationProfiledInternal.exists()) {
+            result.add(applicationProfiledInternal);
+        } else {
+            log.warn(">>> Properties file {} is MISSING from classpath", applicationProfiledInternal.getFilename());
+        }
+        if (applicationProfiledExternal.exists()) {
+            result.add(applicationProfiledExternal);
+        } else {
+            log.warn(">>> Properties file {} is MISSING from filesystem", applicationProfiledExternal.getFilename());
+        }
+
+        return result;
+    }
+
+    private Cipher initCipher() throws Exception {
+        Cipher result = null;
+
+        String cryptoKeyText = applicationContext.getEnvironment().getProperty("CRYPTO_KEY");
+        if (StringUtils.isEmpty(cryptoKeyText)) {
+            log.error(">>> INIT: The CRYPTO_KEY env var was empty or not present.");
+            return result;
+        }
+
+        result = Cipher.getInstance(TRANSFORM_ALGO);
+
         // Init some crypto
-        cipher = Cipher.getInstance(TRANSFORM_ALGO);
-        secretKeySpec = new PBEKeySpec(cryptoKeyString.toCharArray(), SALT.getBytes(), 65536, 256);
-        secretKeyFactory = SecretKeyFactory.getInstance(PBE_ALGO);
-        secretKey = secretKeyFactory.generateSecret(secretKeySpec);
+        final String                 salt             = "1@ds#&6f";
+        final AlgorithmParameterSpec pbeParam         = new PBEParameterSpec(salt.getBytes(), 65536);
+        PBEKeySpec                   secretKeySpec    = new PBEKeySpec(cryptoKeyText.toCharArray(), salt.getBytes(), 65536, 256);
+        SecretKeyFactory             secretKeyFactory = SecretKeyFactory.getInstance(PBE_ALGO);
+        SecretKey                    secretKey        = secretKeyFactory.generateSecret(secretKeySpec);
         secretKey = new SecretKeySpec(secretKey.getEncoded(), PBE_ALGO);
-        cipher.init(Cipher.DECRYPT_MODE, secretKey, PBE_PARAM);
+        result.init(Cipher.DECRYPT_MODE, secretKey, pbeParam);
+
+        return result;
     }
 
-    public static Object getDecrypted(final Object encrypted) throws Exception {
+    public static Object getDecrypted(final Cipher cipher, final Object encrypted) throws Exception {
 
         Object  result          = encrypted;
         String  encryptedString = result.toString();
@@ -121,7 +137,7 @@ public class MultiConfig implements ApplicationContextAware {
         if (matcher.matches()) {
             // This should never happen, our regex runs greedy to end of line.
             if (matcher.groupCount() != 2) {
-                throw new IllegalStateException("Each encrypted line should match the regex " + TO_BE_DECRYPTED_REGEX);
+                throw new IllegalStateException("Each encrypted line should match the regex " + TO_BE_DECRYPTED_TOKEN_REGEX);
             }
 
             String encryptedValue = matcher.group(2);

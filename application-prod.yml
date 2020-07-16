@@ -1,0 +1,19 @@
+com:
+  alexmegremis:
+    datasource:
+      mariadb:
+        url: jdbc:mariadb://NAS01.local:3307/spring_test
+        username: spring_test
+        password: ENC{UgKuC2Pb3XLLEQFUVMTC7w==}
+        driver-class-name: org.mariadb.jdbc.Driver
+      othermariadb:
+        url: jdbc:mariadb://NAS01.local:3307/spring_test02
+        username: spring_test02
+        password: ENC{UgKuC2Pb3XLLEQFUVMTC7w==}
+        driver-class-name: org.mariadb.jdbc.Driver
+spring:
+  ldap:
+    urls: ldap://nas01.local:389
+    base: dc=nas01,dc=local
+    username: uid=test,cn=users,dc=nas01,dc=local
+    password: ENC{sYKsxY2dg+TrOcTAEl5u7w==}

@@ -3,13 +3,13 @@ com:
     datasource:
       mariadb:
         url: jdbc:mariadb://NAS01.local:3307/spring_test
-        username: spring_test
-        password: ENC{UgKuC2Pb3XLLEQFUVMTC7w==}
+        username:
+        password:
         driver-class-name: org.mariadb.jdbc.Driver
       othermariadb:
         url: jdbc:mariadb://NAS01.local:3307/spring_test02
-        username: spring_test02
-        password: ENC{UgKuC2Pb3XLLEQFUVMTC7w==}
+        username:
+        password:
         driver-class-name: org.mariadb.jdbc.Driver
 
 stuffToIgnore:
@@ -20,6 +20,11 @@ spring:
   application:
     admin:
       enabled: true
+  ldap:
+    urls: ldap://nas01.local:389
+    base: dc=nas01,dc=local
+    username:
+    password:
 management:
   endpoints:
     web:
